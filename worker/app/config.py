@@ -1,15 +1,8 @@
-WORKER_ID = "worker1"
+import os
+from dotenv import load_dotenv
 
-AGGREGATOR_URL = "http://16.170.224.169:8000"
+load_dotenv()
 
-DATASET_PATH = "../datasets/processed/worker1.csv"
-WORKER_ID = "worker2"
-
-AGGREGATOR_URL = "http://16.170.224.169:8000"
-
-DATASET_PATH = "../datasets/processed/worker2.csv"
-WORKER_ID = "worker3"
-
-AGGREGATOR_URL = "http://16.170.224.169:8000"
-
-DATASET_PATH = "../datasets/processed/worker3.csv"
+WORKER_ID = os.getenv("WORKER_ID")
+AGGREGATOR_URL = os.getenv("AGGREGATOR_URL")
+DATASET_PATH = os.getenv("DATASET_PATH")
