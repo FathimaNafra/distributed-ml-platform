@@ -4,6 +4,7 @@ from app.config import WORKER_ID, DATASET_PATH
 from app.data_loader import load_dataset
 from app.register import register_worker
 from app.trainer import train_local_model
+from app.submit_model import submit_model
 
 hostname = socket.gethostname()
 worker_ip = socket.gethostbyname(hostname)
@@ -25,5 +26,13 @@ result = train_local_model(DATASET_PATH, WORKER_ID)
 print("\nTraining completed!")
 print(f"Accuracy : {result['accuracy']:.4f}")
 print(f"Model saved at : {result['model_path']}")
+print("\nSending model to Aggregator...")
 
+response = submit_model(
+    worker_id=WORKER_ID,
+    accuracy=result["accuracy"],
+    weights=result["weights"]
+)
+
+print(response)
 print("\nWorker Ready!")
