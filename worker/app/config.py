@@ -8,3 +8,8 @@ WORKER_ID = "worker2"
 AGGREGATOR_URL = "http://16.170.224.169:8000"
 
 DATASET_PATH = "../datasets/processed/worker2.csv"
+WORKER_ID = "worker3"
+
+AGGREGATOR_URL = "http://16.170.224.169:8000"
+
+DATASET_PATH = "../datasets/processed/worker3.csv"
