@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from app.models import WorkerRegistration
-from app.state import workers
+from app.models import WorkerRegistration, ModelUpdate
+from app.state import workers, worker_updates
 
 router = APIRouter()
 
@@ -25,5 +25,20 @@ def register_worker(worker: WorkerRegistration):
 
 @router.get("/workers")
 def get_workers():
-
     return workers
+
+
+@router.post("/submit-model")
+def submit_model(update: ModelUpdate):
+
+    worker_updates.append(update.model_dump())
+
+    return {
+        "message": "Model received successfully",
+        "received_updates": len(worker_updates)
+    }
+
+
+@router.get("/updates")
+def get_updates():
+    return worker_updates
