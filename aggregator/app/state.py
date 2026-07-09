@@ -1,6 +1,6 @@
 workers = {}
 
-current_round = 0
+current_round = 1
 
 global_model = None
 
