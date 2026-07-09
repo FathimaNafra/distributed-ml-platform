@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from app.models import WorkerRegistration, ModelUpdate
 from app.state import workers, worker_updates
 from app.aggregation import aggregate_models
+from app.storage import save_global_model, save_training_history
 router = APIRouter()
 
 @router.get("/")
@@ -36,12 +37,18 @@ def aggregate():
             "message": "No worker updates available."
         }
 
+    save_global_model(global_weights)
+
+    save_training_history(
+        round_number=1,
+        worker_updates=worker_updates
+    )
+
     return {
         "message": "Global model created successfully.",
         "workers_used": len(worker_updates),
         "global_weights": global_weights
     }
-
 @router.post("/submit-model")
 def submit_model(update: ModelUpdate):
 
