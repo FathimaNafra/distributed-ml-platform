@@ -3,6 +3,7 @@ from app.models import WorkerRegistration, ModelUpdate
 from app.state import workers, worker_updates,current_round
 from app.aggregation import aggregate_models
 from app.storage import save_global_model, save_training_history
+
 router = APIRouter()
 
 @router.get("/")
@@ -40,6 +41,10 @@ def aggregate():
         }
 
     save_global_model(global_weights)
+    
+    average_worker_accuracy = sum(
+           worker["accuracy"] for worker in worker_updates
+    ) / len(worker_updates)
 
     save_training_history(
         round_number=current_round,
@@ -47,12 +52,12 @@ def aggregate():
     )
 
     response = {
-        "message": "Global model created successfully.",
-        "round": current_round,
-        "workers_used": len(worker_updates),
-        "global_weights": global_weights
-    }
-
+    "message": "Global model created successfully.",
+    "round": current_round,
+    "workers_used": len(worker_updates),
+    "average_worker_accuracy": round(average_worker_accuracy, 4),
+    "global_weights": global_weights
+}
     worker_updates.clear()
 
     current_round += 1
