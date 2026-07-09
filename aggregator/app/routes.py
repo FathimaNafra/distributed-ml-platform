@@ -114,3 +114,15 @@ def get_status():
         "average_worker_accuracy": round(average_worker_accuracy, 4),
         "last_aggregation_time": last_aggregation_time
     }
+@router.get("/api-info")
+def api_info():
+    return {
+        "service": "Distributed ML Aggregator",
+        "version": "1.0",
+        "endpoints": {
+            "register": "/register",
+            "submit_model": "/submit-model",
+            "aggregate": "/aggregate",
+            "status": "/status"
+        }
+    }
