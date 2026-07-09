@@ -10,7 +10,7 @@ from app.state import (
 )
 from app.aggregation import aggregate_models
 from app.storage import save_global_model, save_training_history
-
+from datetime import datetime
 router = APIRouter()
 
 
@@ -24,17 +24,16 @@ def home():
 
 @router.post("/register")
 def register_worker(worker: WorkerRegistration):
-
     workers[worker.worker_id] = {
-        "ip": worker.worker_ip
+        "ip": worker.worker_ip,
+        "last_seen": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "Online"
     }
 
     return {
         "message": "Worker Registered",
         "workers": len(workers)
     }
-
-
 @router.get("/workers")
 def get_workers():
     return workers
@@ -126,3 +125,6 @@ def api_info():
             "status": "/status"
         }
     }
+@router.get("/worker-locations")
+def worker_locations():
+    return workers
