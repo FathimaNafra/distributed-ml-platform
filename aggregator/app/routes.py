@@ -59,6 +59,24 @@ def get_updates():
 def aggregate():
 
     global current_round
+    expected_workers = set(workers.keys())
+
+    submitted_workers = {
+        update["worker_id"]
+        for update in worker_updates
+    }
+
+    missing_workers = list(
+        expected_workers - submitted_workers
+    )
+
+    if missing_workers:
+      return {
+        "message": "Waiting for remaining workers.",
+        "received_updates": len(worker_updates),
+        "expected_workers": len(workers),
+        "missing_workers": missing_workers
+     }
     global aggregation_status
     global average_worker_accuracy
     global last_aggregation_time
