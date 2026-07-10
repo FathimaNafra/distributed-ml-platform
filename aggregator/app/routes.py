@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from app.lock import worker_lock
 from app.models import WorkerRegistration, ModelUpdate
 from app.state import (
     workers,
@@ -42,7 +43,8 @@ def get_workers():
 @router.post("/submit-model")
 def submit_model(update: ModelUpdate):
 
-    worker_updates.append(update.model_dump())
+    with worker_lock:
+        worker_updates.append(update.model_dump())
 
     return {
         "message": "Model received successfully",
