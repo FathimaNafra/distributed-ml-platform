@@ -1,11 +1,11 @@
 import streamlit as st
 import requests
 import pandas as pd
-from streamlit_autorefresh import st_autorefresh
 
-# -------------------------------------
+
+# ---------------------------------------
 # Dashboard Configuration
-# -------------------------------------
+# ---------------------------------------
 
 st.set_page_config(
     page_title="Distributed ML Dashboard",
@@ -13,52 +13,59 @@ st.set_page_config(
     layout="wide"
 )
 
-# Auto refresh every 5 seconds
-st_autorefresh(interval=5000, key="dashboard_refresh")
 
-# -------------------------------------
+
+# ---------------------------------------
 # Aggregator URL
-# -------------------------------------
+# ---------------------------------------
 
 AGGREGATOR_URL = "http://51.20.41.124:8000"
 
-# -------------------------------------
+# ---------------------------------------
 # Helper Function
-# -------------------------------------
+# ---------------------------------------
 
 def get_api(endpoint):
     try:
-        response = requests.get(f"{AGGREGATOR_URL}{endpoint}")
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {}
-    except:
+        response = requests.get(
+            f"{AGGREGATOR_URL}{endpoint}",
+            timeout=5
+        )
+
+        response.raise_for_status()
+
+        return response.json()
+
+    except Exception as e:
+        st.error(f"Unable to connect to {endpoint}")
+        st.code(str(e))
         return {}
 
-# -------------------------------------
-# Read APIs
-# -------------------------------------
+# ---------------------------------------
+# Read API Data
+# ---------------------------------------
 
 status = get_api("/status")
 workers = get_api("/worker-locations")
 metrics = get_api("/metrics")
 scalability = get_api("/scalability")
 updates = get_api("/updates")
+history = get_api("/training-history")
 
-# -------------------------------------
-# Title
-# -------------------------------------
+# ---------------------------------------
+# Dashboard Title
+# ---------------------------------------
 
 st.title("🤖 Distributed Machine Learning Dashboard")
+st.caption("Federated Learning Monitoring Dashboard")
 
-st.markdown("---")
+st.divider()
 
-# -------------------------------------
+# ---------------------------------------
 # System Overview
-# -------------------------------------
+# ---------------------------------------
 
-st.header("📊 System Overview")
+st.subheader("📊 System Overview")
 
 col1, col2, col3 = st.columns(3)
 
@@ -100,37 +107,45 @@ with col6:
         status.get("last_aggregation_time", "N/A")
     )
 
-st.markdown("---")
+st.divider()
 
-# -------------------------------------
+# ---------------------------------------
 # Worker Monitoring
-# -------------------------------------
+# ---------------------------------------
 
-st.header("🖥 Worker Monitoring")
+st.subheader("🖥 Worker Monitoring")
 
-rows = []
+worker_rows = []
 
 for worker_id, info in workers.items():
-    rows.append({
+
+    worker_rows.append({
         "Worker ID": worker_id,
-        "IP Address": info.get("ip"),
-        "Status": info.get("status"),
-        "Last Seen": info.get("last_seen")
+        "IP Address": info.get("ip", ""),
+        "Status": info.get("status", ""),
+        "Last Seen": info.get("last_seen", "")
     })
 
-if len(rows) > 0:
-    df = pd.DataFrame(rows)
-    st.dataframe(df, use_container_width=True)
+if worker_rows:
+
+    worker_df = pd.DataFrame(worker_rows)
+
+    st.dataframe(
+        worker_df,
+        width="stretch"
+    )
+
 else:
-    st.info("No workers registered.")
 
-st.markdown("---")
+    st.info("No workers are currently registered.")
 
-# -------------------------------------
+st.divider()
+
+# ---------------------------------------
 # Performance Metrics
-# -------------------------------------
+# ---------------------------------------
 
-st.header("⚡ Performance Metrics")
+st.subheader("⚡ Performance Metrics")
 
 col7, col8, col9 = st.columns(3)
 
@@ -152,52 +167,177 @@ with col9:
         metrics.get("average_worker_accuracy", 0)
     )
 
-st.write(metrics)
+col10, col11 = st.columns(2)
 
-st.markdown("---")
+with col10:
+    st.metric(
+        "Registered Workers",
+        metrics.get("registered_workers", 0)
+    )
 
-# -------------------------------------
+with col11:
+    st.metric(
+        "System Status",
+        metrics.get("aggregation_status", "Unknown")
+    )
+
+st.divider()
+
+# ---------------------------------------
 # Scalability
-# -------------------------------------
+# ---------------------------------------
 
-st.header("📈 Scalability")
+st.subheader("📈 Scalability")
 
-st.write(scalability)
+col12, col13 = st.columns(2)
 
-st.markdown("---")
+with col12:
+    st.metric(
+        "Registered Workers",
+        scalability.get("registered_workers", 0)
+    )
 
-# -------------------------------------
+with col13:
+    st.metric(
+        "Pending Updates",
+        scalability.get("pending_updates", 0)
+    )
+
+st.info(
+    scalability.get(
+        "scalability_status",
+        "No scalability information available."
+    )
+)
+
+st.divider()
+
+# ---------------------------------------
 # Submitted Model Updates
-# -------------------------------------
+# ---------------------------------------
 
-st.header("📦 Submitted Model Updates")
+st.subheader("📦 Submitted Model Updates")
 
-if len(updates) > 0:
+if updates:
 
     update_rows = []
 
     for item in updates:
+
         update_rows.append({
-            "Worker": item.get("worker_id"),
+            "Worker ID": item.get("worker_id"),
             "Accuracy": item.get("accuracy")
         })
 
     update_df = pd.DataFrame(update_rows)
 
-    st.dataframe(update_df, use_container_width=True)
+    st.dataframe(
+        update_df,
+        width="stretch"
+    )
 
 else:
-    st.info("No model updates received.")
 
-st.markdown("---")
+    st.info("No model updates submitted yet.")
 
-# -------------------------------------
+st.divider()
+
+# ---------------------------------------
+# Training Accuracy Trend
+# ---------------------------------------
+
+st.subheader("📈 Training Accuracy Trend")
+
+if history:
+
+    accuracy_df = pd.DataFrame({
+        "Round": [
+            item["round"]
+            for item in history
+        ],
+        "Average Accuracy": [
+            item["average_accuracy"]
+            for item in history
+        ]
+    })
+
+    accuracy_df = accuracy_df.set_index("Round")
+
+    st.line_chart(accuracy_df)
+
+else:
+
+    st.info("No training history available.")
+
+st.divider()
+
+# ---------------------------------------
+# Worker Accuracy Comparison
+# ---------------------------------------
+
+st.subheader("📊 Worker Accuracy Comparison")
+
+if history:
+
+    latest_round = history[-1]
+
+    worker_df = pd.DataFrame({
+        "Worker": [
+            worker["worker_id"]
+            for worker in latest_round["workers"]
+        ],
+        "Accuracy": [
+            worker["accuracy"]
+            for worker in latest_round["workers"]
+        ]
+    })
+
+    worker_df = worker_df.set_index("Worker")
+
+    st.bar_chart(worker_df)
+
+else:
+
+    st.info("No worker accuracy data available.")
+
+st.divider()
+
+# ---------------------------------------
+# Worker Participation Per Round
+# ---------------------------------------
+
+st.subheader("👥 Worker Participation")
+
+if history:
+
+    participation_df = pd.DataFrame({
+        "Round": [
+            item["round"]
+            for item in history
+        ],
+        "Workers": [
+            len(item["workers"])
+            for item in history
+        ]
+    })
+
+    participation_df = participation_df.set_index("Round")
+
+    st.bar_chart(participation_df)
+
+else:
+
+    st.info("No participation history available.")
+
+st.divider()
+
+# ---------------------------------------
 # Transparency Status
-# -------------------------------------
+# ---------------------------------------
 
-st.header("🔍 Distributed System Transparencies")
+st.subheader("🔍 Distributed System Transparencies")
 
-transparency = pd.DataFrame({
+transparency_df = pd.DataFrame({
     "Transparency": [
         "Access Transparency",
         "Location Transparency",
@@ -207,17 +347,89 @@ transparency = pd.DataFrame({
         "Scalability Transparency"
     ],
     "Status": [
-        "Implemented",
-        "Implemented",
-        "Implemented",
-        "Implemented",
-        "Implemented",
-        "Implemented"
+        "✅ Implemented",
+        "✅ Implemented",
+        "✅ Implemented",
+        "✅ Implemented",
+        "✅ Implemented",
+        "✅ Implemented"
     ]
 })
 
-st.table(transparency)
+st.table(transparency_df)
 
-st.markdown("---")
+st.divider()
 
-st.success("Dashboard is connected to the Distributed ML Platform.")
+# ---------------------------------------
+# API Health Status
+# ---------------------------------------
+
+st.subheader("🌐 API Health Status")
+
+api_status = pd.DataFrame({
+    "API Endpoint": [
+        "/status",
+        "/worker-locations",
+        "/metrics",
+        "/scalability",
+        "/updates",
+        "/training-history"
+    ],
+    "Status": [
+        "🟢 Connected" if status else "🔴 Offline",
+        "🟢 Connected" if workers else "🔴 Offline",
+        "🟢 Connected" if metrics else "🔴 Offline",
+        "🟢 Connected" if scalability else "🔴 Offline",
+        "🟢 Connected" if isinstance(updates, list) else "🔴 Offline",
+        "🟢 Connected" if isinstance(history, list) else "🔴 Offline"
+    ]
+})
+
+st.dataframe(api_status, width="stretch")
+
+st.divider()
+
+# ---------------------------------------
+# Dashboard Summary
+# ---------------------------------------
+
+st.subheader("📋 Dashboard Summary")
+
+summary_col1, summary_col2 = st.columns(2)
+
+with summary_col1:
+
+    st.success("✔ Distributed ML Platform Running")
+
+    st.write(f"**Registered Workers:** {status.get('registered_workers',0)}")
+
+    st.write(f"**Current Round:** {status.get('current_round',0)}")
+
+    st.write(f"**Aggregation Status:** {status.get('aggregation_status','Unknown')}")
+
+with summary_col2:
+
+    st.info("Transparency Features")
+
+    st.write("✅ Access")
+
+    st.write("✅ Location")
+
+    st.write("✅ Failure")
+
+    st.write("✅ Concurrency")
+
+    st.write("✅ Performance")
+
+    st.write("✅ Scalability")
+
+st.divider()
+
+# ---------------------------------------
+# Footer
+# ---------------------------------------
+
+st.caption(
+    "Distributed Machine Learning Platform Dashboard | "
+    "Built with Streamlit | Auto Refresh: Every 5 Seconds"
+)

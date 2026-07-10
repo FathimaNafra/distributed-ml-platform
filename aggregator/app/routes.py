@@ -1,5 +1,7 @@
 from fastapi import APIRouter
+import os
 import time
+import json
 from app.lock import worker_lock
 from app.models import WorkerRegistration, ModelUpdate
 from app.state import (
@@ -169,3 +171,13 @@ def scalability():
         "maximum_workers_supported": "Unlimited",
         "scalability_status": "System automatically scales with registered workers."
     }
+@router.get("/training-history")
+def training_history():
+
+    history_file = "logs/training_history.json"
+
+    if not os.path.exists(history_file):
+        return []
+
+    with open(history_file, "r") as f:
+        return json.load(f)
