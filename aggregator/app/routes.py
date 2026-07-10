@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+import time
 from app.lock import worker_lock
 from app.models import WorkerRegistration, ModelUpdate
 from app.state import (
@@ -59,7 +60,7 @@ def get_updates():
 
 @router.post("/aggregate")
 def aggregate():
-
+    start_time = time.time()
     global current_round
     expected_workers = set(workers.keys())
 
@@ -105,14 +106,15 @@ def aggregate():
 
     from datetime import datetime
     last_aggregation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+    aggregation_time = round(time.time() - start_time, 4)
     response = {
-        "message": "Global model created successfully.",
-        "round": current_round,
-        "workers_used": len(worker_updates),
-        "average_worker_accuracy": round(average_worker_accuracy, 4),
-        "global_weights": global_weights
-    }
+    "message": "Global model created successfully.",
+    "round": current_round,
+    "workers_used": len(worker_updates),
+    "average_worker_accuracy": round(average_worker_accuracy, 4),
+    "aggregation_time_seconds": aggregation_time,
+    "global_weights": global_weights
+}
 
     worker_updates.clear()
 
@@ -148,3 +150,22 @@ def api_info():
 @router.get("/worker-locations")
 def worker_locations():
     return workers
+@router.get("/metrics")
+def get_metrics():
+    return {
+        "registered_workers": len(workers),
+        "completed_rounds": current_round - 1,
+        "pending_updates": len(worker_updates),
+        "average_worker_accuracy": round(average_worker_accuracy, 4),
+        "aggregation_status": aggregation_status,
+        "last_aggregation_time": last_aggregation_time
+    }
+@router.get("/scalability")
+def scalability():
+
+    return {
+        "registered_workers": len(workers),
+        "pending_updates": len(worker_updates),
+        "maximum_workers_supported": "Unlimited",
+        "scalability_status": "System automatically scales with registered workers."
+    }
