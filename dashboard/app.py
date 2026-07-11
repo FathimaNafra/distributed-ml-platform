@@ -522,103 +522,123 @@ left_chart, right_chart = st.columns(2)
 # -------------------------------------------------------
 
 with left_chart:
-
     st.subheader("📈 Accuracy Trend")
 
     if history:
+        accuracy_df = pd.DataFrame({
+            "Round": [item["round"] for item in history],
+            "Average Accuracy": [item["average_accuracy"] for item in history]
+        })
 
-       accuracy_df = pd.DataFrame({
-           "Round": [item["round"] for item in history],
-           "Average Accuracy": [item["average_accuracy"] for item in history]
-       })
+        # Remove duplicate rounds
+        accuracy_df = accuracy_df.groupby(
+            "Round",
+            as_index=False
+        ).last()
 
-       fig = px.line(
-          accuracy_df,
-          x="Round",
-          y="Average Accuracy",
-          markers=True,
-          line_shape="spline",
-          template="plotly_dark",
-          color_discrete_sequence=["#00CC96"]
-       )
+        # Sort rounds
+        accuracy_df = accuracy_df.sort_values("Round")
 
-       fig.update_layout(
-          height=420,
-          xaxis_title="Training Round",
-          yaxis_title="Average Accuracy",
-          title="Training Accuracy Over Time"
-       )
+        fig = px.line(
+            accuracy_df,
+            x="Round",
+            y="Average Accuracy",
+            markers=True,
+            template="plotly_dark",
+            color_discrete_sequence=["#00CC96"]
+        )
 
-       st.plotly_chart(fig, width="stretch")
+        fig.update_layout(
+            title="Training Accuracy Over Time",
+            height=420,
+            xaxis_title="Training Round",
+            yaxis_title="Average Accuracy"
+        )
+
+        st.plotly_chart(fig, width="stretch")
 
     else:
-       st.info("No training history available.")
-
+        st.info("No training history available.")
 # -------------------------------------------------------
 # Worker Participation
-# -------------------------------------------------------
-
+# =======================================================
 with right_chart:
+    st.subheader("👥 Worker Participation")
 
-   st.subheader("👥 Worker Participation")
+    if history:
+        participation_df = pd.DataFrame({
+            "Round": [item["round"] for item in history],
+            "Workers": [len(item["workers"]) for item in history]
+        })
 
-   if history:
+        # Keep one record per round
+        participation_df = participation_df.groupby(
+            "Round",
+            as_index=False
+        ).last()
 
-    participation_df = pd.DataFrame({
-        "Round": [item["round"] for item in history],
-        "Workers": [len(item["workers"]) for item in history]
-    })
+        participation_df = participation_df.sort_values("Round")
 
-    fig = px.bar(
-        participation_df,
-        x="Round",
-        y="Workers",
-        color="Workers",
-        text="Workers",
-        template="plotly_dark",
-        color_continuous_scale="Viridis"
-    )
+        fig = px.bar(
+            participation_df,
+            x="Round",
+            y="Workers",
+            text="Workers",
+            color="Workers",
+            template="plotly_dark",
+            color_continuous_scale="Viridis"
+        )
 
-    fig.update_layout(
-        height=420,
-        title="Workers Participated Per Round"
-    )
+        fig.update_layout(
+            title="Workers Participated Per Round",
+            height=420
+        )
 
-    st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch")
 
-   else:
-    st.info("No participation history.")
+    else:
+        st.info("No participation history.")
 st.divider()
 
 # =======================================================
 # Worker Accuracy
-# =======================================================
-
-st.header("📊 Worker Accuracy")
+# ======================================================
+st.header("🏆 Worker Accuracy")
 
 if history:
 
     latest_round = history[-1]
 
-    worker_accuracy = pd.DataFrame({
-        "Worker":[
-            worker["worker_id"]
-            for worker in latest_round["workers"]
-        ],
-        "Accuracy":[
-            worker["accuracy"]
-            for worker in latest_round["workers"]
-        ]
-    })
+    worker_df = pd.DataFrame(latest_round["workers"])
 
-    worker_accuracy = worker_accuracy.set_index("Worker")
+    worker_df = worker_df.sort_values(
+        "accuracy",
+        ascending=True
+    )
 
-    st.bar_chart(worker_accuracy)
+    fig = px.bar(
+        worker_df,
+        x="accuracy",
+        y="worker_id",
+        orientation="h",
+        color="accuracy",
+        text="accuracy",
+        template="plotly_dark",
+        color_continuous_scale="Blues"
+    )
+
+    fig.update_layout(
+        title="Latest Worker Accuracy",
+        height=420,
+        xaxis_title="Accuracy",
+        yaxis_title="Worker"
+    )
+
+    st.plotly_chart(fig, width="stretch")
 
 else:
 
-    st.info("No worker accuracy data.")
-
+    st.info("No worker accuracy available.")
 st.divider()
 
 # =======================================================
@@ -709,6 +729,35 @@ else:
     st.info("Training has not completed yet.")
 
 st.divider()
+
+#========================================================
+#Accuracy Gauge
+#========================================================
+import plotly.graph_objects as go
+
+accuracy = status.get("average_worker_accuracy", 0)
+
+fig = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=accuracy * 100,
+    title={"text": "Global Model Accuracy"},
+    gauge={
+        "axis": {"range": [0, 100]},
+        "bar": {"color": "#00CC96"},
+        "steps": [
+            {"range": [0, 60], "color": "#FF4B4B"},
+            {"range": [60, 80], "color": "#FFA500"},
+            {"range": [80, 100], "color": "#00CC96"}
+        ]
+    }
+))
+
+fig.update_layout(
+    template="plotly_dark",
+    height=350
+)
+
+st.plotly_chart(fig, width="stretch")
 
 # =======================================================
 # Dashboard Insights
@@ -832,38 +881,6 @@ else:
 
 st.divider()
 
-# =======================================================
-# API Health Dashboard
-# =======================================================
-
-st.header("🌐 API Health")
-
-api_health = pd.DataFrame({
-    "Endpoint": [
-        "/status",
-        "/worker-locations",
-        "/metrics",
-        "/scalability",
-        "/updates",
-        "/training-history"
-    ],
-    "Status": [
-        "🟢 Online" if status else "🔴 Offline",
-        "🟢 Online" if workers else "🔴 Offline",
-        "🟢 Online" if metrics else "🔴 Offline",
-        "🟢 Online" if scalability else "🔴 Offline",
-        "🟢 Online" if isinstance(updates, list) else "🔴 Offline",
-        "🟢 Online" if isinstance(history, list) else "🔴 Offline"
-    ]
-})
-
-st.dataframe(
-    api_health,
-    width="stretch",
-    hide_index=True
-)
-
-st.divider()
 
 # =======================================================
 # Live System Status
@@ -930,56 +947,6 @@ st.markdown(summary)
 st.divider()
 
 # =======================================================
-# Distributed System Transparencies
-# =======================================================
-
-st.header("🔍 Distributed System Transparencies")
-
-t1, t2, t3 = st.columns(3)
-
-with t1:
-    st.success("✅ Access Transparency")
-    st.write("Workers access the Aggregator through REST APIs.")
-
-    st.success("✅ Location Transparency")
-    st.write("Workers communicate using API endpoints without knowing physical locations.")
-
-with t2:
-    st.success("✅ Failure Transparency")
-    st.write("Missing workers are detected during aggregation.")
-
-    st.success("✅ Concurrency Transparency")
-    st.write("Thread locking protects simultaneous worker submissions.")
-
-with t3:
-    st.success("✅ Performance Transparency")
-    st.write("Performance metrics are monitored during each round.")
-
-    st.success("✅ Scalability Transparency")
-    st.write("New workers can register dynamically without changing the architecture.")
-
-st.divider()
-
-# =======================================================
-# Overall Project Progress
-# =======================================================
-
-st.header("🚀 Project Progress")
-
-progress_items = {
-    "Worker Registration": registered_workers / EXPECTED_WORKERS,
-    "Training Progress": min(current_round / 10, 1.0),
-    "Dashboard": 1.0,
-    "Transparency Features": 1.0
-}
-
-for name, value in progress_items.items():
-    st.write(f"**{name}**")
-    st.progress(value)
-
-st.divider()
-
-# =======================================================
 # Platform Overview
 # =======================================================
 
@@ -1014,38 +981,6 @@ with overview_col2:
 
 st.divider()
 
-# =======================================================
-# Dashboard Footer
-# =======================================================
-
-st.markdown(
-"""
----
-### 🎓 Distributed Machine Learning Platform
-
-**Technologies Used**
-
-- ⚡ FastAPI
-- 🐍 Python
-- 📊 Streamlit
-- 🌐 REST API
-- ☁ AWS EC2
-
-**Features**
-
-✅ Worker Registration
-
-✅ Model Aggregation
-
-✅ Performance Monitoring
-
-✅ Scalability
-
-✅ Distributed System Transparencies
-
-✅ Interactive Dashboard
-"""
-)
 
 st.success("🎉 Dashboard Connected Successfully")
 
