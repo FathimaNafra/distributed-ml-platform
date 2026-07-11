@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+from app.state import latest_submitted_updates
+from app.config import EXPECTED_WORKERS
 import os
 import time
 import json
@@ -57,8 +59,11 @@ def submit_model(update: ModelUpdate):
 
 @router.get("/updates")
 def get_updates():
-    return worker_updates
 
+    if worker_updates:
+        return worker_updates
+
+    return latest_submitted_updates
 
 @router.post("/aggregate")
 def aggregate():
@@ -95,9 +100,10 @@ def aggregate():
 
     save_global_model(global_weights)
 
-    average_worker_accuracy = sum(
-        worker["accuracy"] for worker in worker_updates
-    ) / len(worker_updates)
+    average_worker_accuracy = round(
+       sum(worker["accuracy"] for worker in worker_updates) / len(worker_updates),
+       4
+    )
 
     save_training_history(
         round_number=current_round,
@@ -117,7 +123,9 @@ def aggregate():
     "aggregation_time_seconds": aggregation_time,
     "global_weights": global_weights
 }
-
+    
+    latest_submitted_updates.clear()
+    latest_submitted_updates.extend(worker_updates)
     worker_updates.clear()
 
     current_round += 1
@@ -128,13 +136,18 @@ def aggregate():
 @router.get("/status")
 def get_status():
 
+    pending_workers = EXPECTED_WORKERS - len(workers)
+
+    if pending_workers < 0:
+        pending_workers = 0
+
     return {
         "current_round": current_round,
         "registered_workers": len(workers),
         "registered_worker_ids": list(workers.keys()),
-        "pending_updates": len(worker_updates),
+        "pending_workers": pending_workers,
         "aggregation_status": aggregation_status,
-        "average_worker_accuracy": round(average_worker_accuracy, 4),
+        "average_worker_accuracy": average_worker_accuracy,
         "last_aggregation_time": last_aggregation_time
     }
 @router.get("/api-info")
@@ -152,23 +165,35 @@ def api_info():
 @router.get("/worker-locations")
 def worker_locations():
     return workers
+
 @router.get("/metrics")
 def get_metrics():
+
+    pending_workers = EXPECTED_WORKERS - len(workers)
+
+    if pending_workers < 0:
+        pending_workers = 0
+
     return {
         "registered_workers": len(workers),
         "completed_rounds": current_round - 1,
-        "pending_updates": len(worker_updates),
-        "average_worker_accuracy": round(average_worker_accuracy, 4),
+        "pending_workers": pending_workers,
+        "average_worker_accuracy": round(average_worker_accuracy, 4) if average_worker_accuracy else 0,
         "aggregation_status": aggregation_status,
         "last_aggregation_time": last_aggregation_time
     }
 @router.get("/scalability")
 def scalability():
 
+    pending_workers = EXPECTED_WORKERS - len(workers)
+
+    if pending_workers < 0:
+        pending_workers = 0
+
     return {
         "registered_workers": len(workers),
-        "pending_updates": len(worker_updates),
-        "maximum_workers_supported": "Unlimited",
+        "pending_workers": pending_workers,
+        "maximum_workers_supported": EXPECTED_WORKERS,
         "scalability_status": "System automatically scales with registered workers."
     }
 @router.get("/training-history")

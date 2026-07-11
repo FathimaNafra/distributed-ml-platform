@@ -8,3 +8,4 @@ worker_updates = []
 aggregation_status = "Waiting"
 average_worker_accuracy = 0.0
 last_aggregation_time = None
+latest_submitted_updates = []
